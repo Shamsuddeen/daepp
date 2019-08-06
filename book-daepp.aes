@@ -1,0 +1,62 @@
+contract Books =
+
+  record book =
+    { creatorAddress : address,
+      url            : string,
+      name           : string,
+      catalogue      : int,
+      author         : string,
+      description    : string,
+      voteCount      : int }
+
+  record catalogue =
+    { creatorAddress : address,
+      url            : string,
+      name           : string,
+      voteCount      : int,
+      description    : string }
+
+  record state =
+    { books      : map(int, book),
+      catalogues : map(int, catalogue),
+      booksLength : int,
+      catalogueLength : int }
+
+  entrypoint init() =
+    { books           = {},
+      catalogues      = {},
+      catalogueLength = 0,
+      booksLength     = 0 }
+
+  entrypoint getBook(index : int) : book =
+  	switch(Map.lookup(index, state.books))
+	    None    => abort("There was no book with this index registered.")
+	    Some(x) => x
+
+  entrypoint getCatalogue(index : int) : catalogue =
+    switch(Map.lookup(index, state.catalogues))
+      None    => abort("There was no catalogue with this index registered.")
+      Some(x) => x
+
+  stateful entrypoint registerBook(url' : string, name' : string, catalogue' : int, author' : string, description' : string) =
+    let book = { creatorAddress = Call.caller, url = url', name = name', catalogue = catalogue', author = author', description = description', voteCount = 0}
+    let index = getBooksLength() + 1
+    put(state{ books[index] = book, booksLength = index })
+
+  stateful entrypoint registerCatalogue(url' : string, name' : string, description' : string) =
+    let catalogue = { creatorAddress = Call.caller, url = url', name = name', description = description', voteCount = 0}
+    let index = getCataloguesLength() + 1
+    put(state{ catalogues[index] = catalogue, catalogueLength = index })
+
+  entrypoint getBooksLength() : int =
+    state.booksLength
+
+  entrypoint getCataloguesLength() : int =
+    state.catalogueLength
+
+  stateful entrypoint voteBook(index : int) =
+    let book = getBook(index)
+    Chain.spend(book.creatorAddress, Call.value)
+    let updatedVoteCount = book.voteCount + Call.value
+    let updatedBooks = state.books{ [index].voteCount = updatedVoteCount }
+    put(state{ books = updatedBooks })
